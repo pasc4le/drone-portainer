@@ -28,34 +28,36 @@ if (!dockerComposeFile || dockerComposeFile === "") {
 
 const axios = Axios.create({
   baseURL: `${portainerUrl}/api`,
-  validateStatus: function (status) {
+  validateStatus: function(status) {
     return status < 5000;
   },
 });
 
-(async function () {
+(async function() {
   // Authenticate with portainer and set the bearer token
+  console.log("[INFO] Trying to autheticate...");
   let response = await axios.post("/auth", {
     Username: portainerUsername,
     Password: portainerPassword,
   });
 
   if (response.status !== 200) {
-    console.error("Login failed");
+    console.error("[ERROR] Login failed");
     console.error(response);
     process.exit(1);
-  }
+  } else console.log("[INFO] Success.");
 
   const bearerToken = response.data.jwt as string;
   axios.defaults.headers.common["Authorization"] = "Bearer " + bearerToken;
 
+  console.log("[INFO] Retrieving endpoints...");
   const endpointsReponse = await axios.get("/endpoints");
 
   if (response.status !== 200) {
-    console.error("Get endpoints failed");
+    console.error("[ERROR] Get endpoints failed");
     console.error(response);
     process.exit(1);
-  }
+  } else console.log("[INFO] Success.");
 
   // Find the endpoint id
   const localEp = endpointsReponse.data.find(
@@ -65,25 +67,31 @@ const axios = Axios.create({
   if (!localEp) {
     console.error(`Endpoint ${endpoint} not found`);
     process.exit(1);
-  }
+  } else console.log(`[INFO] Endpoint ${endpoint} found with ID ${localEp.Id}`);
 
   // Check if the private registry is registered with portainer
+  console.log("[INFO] Retrieving registries...");
   const registriesResponse = await axios.get("/registries");
 
   if (response.status !== 200) {
-    console.error("Get registries failed");
+    console.error("[ERROR] Get registries failed");
     console.error(response);
     process.exit(1);
-  }
+  } else console.log("[INFO] Success.");
 
   const registryFromList = registriesResponse.data.find(
     (reg: { Id: number; URL: string }) => reg.URL === registry,
   );
 
   if (!registryFromList) {
-    console.error("Registry not configured in portainer");
+    console.error("[ERROR] Registry not configured in portainer");
     process.exit(1);
-  }
+  } else
+    console.log(
+      `[INFO] Registry ${registry} found with ID ${registryFromList.Id}`,
+    );
+
+  console.log("[INFO] Preparing Image Coordinates...");
 
   // Supply a 'X-Registry-Auth' header to work with portainer
   const xRegistryAuth = { registryId: registryFromList.Id };
@@ -93,9 +101,11 @@ const axios = Axios.create({
 
   const releaseTag = branchName + commitHash.substr(0, 8);
 
+  console.log("[INFO] Pulling Images...");
   await Promise.all(
     images.split(",").map(async (imageName: string) => {
       // Pull the image
+      console.log(`[INFO] Requesting Image ${imageName}...`);
       const imageResponse = await axios.post(
         `/endpoints/${localEp.Id}/docker/images/create`,
         {},
@@ -106,43 +116,49 @@ const axios = Axios.create({
       );
 
       if (imageResponse.status !== 200) {
-        console.error("Could not pull image " + imageName);
+        console.error("[ERROR] Could not pull image " + imageName);
         console.error(imageResponse);
         process.exit(1);
-      }
+      } else console.log(`[INFO] Success. Pulled ${imageName}.`);
     }),
   );
+  console.log("[INFO] Success. Pulled all images.");
+
+  console.log(`[INFO] Standalone Mode Enabled: ${standalone}`);
 
   let stackOptions = {};
   let swarmId = "";
   if (!standalone) {
     // Find the swarm id
+    console.log("[INFO] Retrieving Swarm ID by Endpoint ID...");
     const swarmResponse = await axios.get(
       `/endpoints/${localEp.Id}/docker/swarm`,
     );
 
     if (swarmResponse.status !== 200) {
-      console.error("Could not get swarm id");
+      console.error("[ERROR] Could not get swarm id");
       console.error(swarmResponse);
       process.exit(1);
-    }
+    } else console.log("[INFO] Success.");
 
     swarmId = swarmResponse.data.ID;
 
-    console.log(`Swarm id: ${swarmId}`);
+    console.log(`[INFO] Swarm ID: ${swarmId}`);
+
     stackOptions = {
       params: { filters: { SwarmID: swarmId } },
     };
   }
 
   // Find the stack to update
+  console.log("[INFO] Retrieving stacks list...");
   const stacksResponse = await axios.get("/stacks", stackOptions);
 
   if (stacksResponse.status !== 200) {
-    console.error("Could not get list of stacks");
+    console.error("[ERROR] Could not get list of stacks");
     console.error(stacksResponse);
     process.exit(1);
-  }
+  } else console.log("[INFO] Success.");
 
   // Update the stack
   const stackToUpdate = stacksResponse.data.find(
@@ -175,7 +191,7 @@ const axios = Axios.create({
   }
 
   if (!stackToUpdate) {
-    console.log(`Creating stack ${stackName}`);
+    console.log(`[INFO] Creating stack ${stackName}`);
     let operationType = 2;
 
     let stackCreateOptions = {
@@ -197,12 +213,14 @@ const axios = Axios.create({
     );
 
     if (stackCreateResponse.status !== 200) {
-      console.error("Could not create stack");
+      console.error("[ERROR] Could not create stack");
       console.error(stackCreateResponse);
       process.exit(1);
     }
   } else {
-    console.log(`Updating stack ${stackToUpdate.Id} - ${stackToUpdate.Name}`);
+    console.log(
+      `[INFO] Updating stack ${stackToUpdate.Name} (ID:${stackToUpdate.Id})`,
+    );
 
     const stackUpdateResponse = await axios.put(
       `/stacks/${stackToUpdate.Id}?endpointId=${localEp.Id}`,
@@ -216,11 +234,11 @@ const axios = Axios.create({
     );
 
     if (stackUpdateResponse.status !== 200) {
-      console.error("Could not update stack");
+      console.error("[ERROR] Could not update stack");
       console.error(stackUpdateResponse);
       process.exit(1);
     }
   }
 
-  console.log("-- done --");
+  console.log("[INFO] Done.");
 })();
