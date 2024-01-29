@@ -137,38 +137,43 @@ const getRegistryAuth = async (registryUrl: string) => {
     process.exit(1);
   } else console.log(`[INFO] Endpoint ${endpoint} found with ID ${localEp.Id}`);
 
-  console.log("[INFO] Pulling Images...");
-  await Promise.all(
-    images.split(",").map(async (imageName: string) => {
-      // Pull the image
-      const imageRequestHeaders = new AxiosHeaders();
+  if (images && images != "") {
+    console.log("[INFO] Pulling Images...");
 
-      const registry = imageName.split("/")[0];
+    await Promise.all(
+      images.split(",").map(async (imageName: string) => {
+        console.log(`[INFO] Requesting Image ${imageName}...`);
 
-      if (registry != "docker.io") {
-        const registryAuth = await getRegistryAuth(registry);
+        // Pull the image
+        const imageRequestHeaders = new AxiosHeaders();
 
-        imageRequestHeaders.set("X-Registry-Auth", registryAuth);
-      }
+        const registry = imageName.split("/")[0];
 
-      console.log(`[INFO] Requesting Image ${imageName}...`);
-      const imageResponse = await axios.post(
-        `/endpoints/${localEp.Id}/docker/images/create`,
-        {},
-        {
-          headers: imageRequestHeaders,
-          params: { fromImage: imageName, tag: releaseTag },
-        },
-      );
+        if (registry != "docker.io") {
+          const registryAuth = await getRegistryAuth(registry);
 
-      if (imageResponse.status !== 200) {
-        console.error("[ERROR] Could not pull image " + imageName);
-        console.error(imageResponse);
-        process.exit(1);
-      } else console.log(`[INFO] Success. Pulled ${imageName}.`);
-    }),
-  );
-  console.log("[INFO] Success. Pulled all images.");
+          imageRequestHeaders.set("X-Registry-Auth", registryAuth);
+        }
+
+        const imageResponse = await axios.post(
+          `/endpoints/${localEp.Id}/docker/images/create`,
+          {},
+          {
+            headers: imageRequestHeaders,
+            params: { fromImage: imageName, tag: releaseTag },
+          },
+        );
+
+        if (imageResponse.status !== 200) {
+          console.error("[ERROR] Could not pull image " + imageName);
+          console.error(imageResponse);
+          process.exit(1);
+        } else console.log(`[INFO] Success. Pulled ${imageName}.`);
+      }),
+    );
+
+    console.log("[INFO] Success. Pulled all images.");
+  }
 
   console.log(`[INFO] Standalone Mode Enabled: ${standalone}`);
 
