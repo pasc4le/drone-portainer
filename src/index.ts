@@ -13,8 +13,8 @@ const stackName = process.env.PLUGIN_STACK_NAME;
 const endpoint = process.env.PLUGIN_ENDPOINT;
 const composeEnvStr = process.env.PLUGIN_COMPOSE_ENVIRONMENT;
 let dockerComposeFile = process.env.PLUGIN_COMPOSE_FILE;
-const standalone = process.env.PLUGIN_STANDALONE;
-const forcePull = process.env.PLUGIN_FORCE_PULL;
+const standalone = process.env.PLUGIN_STANDALONE ?? false;
+const forcePull = process.env.PLUGIN_FORCE_PULL ?? false;
 
 let additionalComposeEnv: { [key: string]: string } = {};
 
@@ -40,7 +40,7 @@ const axios = Axios.create({
   console.log(`[INFO] \tPortainer URL: ${portainerUrl}`);
   console.log(`[INFO] \tPortainer Username: ${portainerUsername}`);
   console.log(`[INFO] \tRegistry: ${registry}`);
-  console.log(`[INFO] \tImages: ${images.replace(",", ", ")}`);
+  console.log(`[INFO] \tImages: ${images.split(",").join(", ")}`);
   console.log(`[INFO] \tStack Name: ${stackName}`);
   console.log(`[INFO] \tEndpoint Name: ${endpoint}`);
   console.log(`[INFO] \tCompose Environment: ${composeEnvStr}`);
