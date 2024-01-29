@@ -61,7 +61,9 @@ const getRegistryAuth = async (registryUrl: string) => {
   ) as { Id: number; URL: string } | undefined;
 
   if (!registryFromList) {
-    console.error("[ERROR] Registry not configured in portainer");
+    console.error(
+      `[ERROR] Registry ${registryUrl} not configured in portainer`,
+    );
     process.exit(1);
   } else
     console.log(
