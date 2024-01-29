@@ -83,7 +83,7 @@ const getRegistryAuth = async (registryUrl: string) => {
     process.exit(1);
   }
 
-  const releaseTag = branchName + commitHash.substring(0, 8);
+  const releaseTag = branchName + "-" + commitHash.substring(0, 8);
 
   console.log(
     "[INFO] Running drone-portainer plugin with the following params:",
