@@ -80,7 +80,7 @@ const axios = Axios.create({
   );
 
   if (!localEp) {
-    console.error(`Endpoint ${endpoint} not found`);
+    console.error(`[ERROR] Endpoint ${endpoint} not found`);
     process.exit(1);
   } else console.log(`[INFO] Endpoint ${endpoint} found with ID ${localEp.Id}`);
 
@@ -186,7 +186,7 @@ const axios = Axios.create({
   try {
     composeFile = fs.readFileSync(dockerComposeFile);
   } catch (e) {
-    console.error(`Could not read compose file ${dockerComposeFile}`);
+    console.error(`[ERROR] Could not read compose file ${dockerComposeFile}`);
     console.error(e);
     process.exit(1);
   }
