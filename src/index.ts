@@ -34,6 +34,21 @@ const axios = Axios.create({
 });
 
 (async function() {
+  console.log(
+    "[INFO] Running drone-portainer plugin with the following params:",
+  );
+  console.log(`[INFO] \tPortainer URL: ${portainerUrl}`);
+  console.log(`[INFO] \tPortainer Username: ${portainerUsername}`);
+  console.log(`[INFO] \tRegistry: ${registry}`);
+  console.log(`[INFO] \tImages: ${images.replace(",", ", ")}`);
+  console.log(`[INFO] \tStack Name: ${stackName}`);
+  console.log(`[INFO] \tEndpoint Name: ${endpoint}`);
+  console.log(`[INFO] \tCompose Environment: ${composeEnvStr}`);
+  console.log(`[INFO] \tDocker Compose File: ${dockerComposeFile}`);
+  console.log(`[INFO] \tStandalone Mode: ${standalone}`);
+  console.log(`[INFO] \tForce Pull: ${forcePull}`);
+  console.log("\n");
+
   // Authenticate with portainer and set the bearer token
   console.log("[INFO] Trying to autheticate...");
   let response = await axios.post("/auth", {
