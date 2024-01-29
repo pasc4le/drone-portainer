@@ -1,5 +1,5 @@
 import fs from "fs";
-import Axios from "axios";
+import Axios, { AxiosHeaders } from "axios";
 
 const branchName = process.env.DRONE_BRANCH;
 const commitHash = process.env.DRONE_COMMIT_SHA;
@@ -7,8 +7,7 @@ const commitHash = process.env.DRONE_COMMIT_SHA;
 const portainerUrl = process.env.PLUGIN_PORTAINER_URL;
 const portainerUsername = process.env.PLUGIN_PORTAINER_USERNAME;
 const portainerPassword = process.env.PLUGIN_PORTAINER_PASSWORD;
-const registry = process.env.PLUGIN_REGISTRY;
-const images = process.env.PLUGIN_IMAGES;
+const images = process.env.PLUGIN_IMAGES ?? "";
 const stackName = process.env.PLUGIN_STACK_NAME;
 const endpoint = process.env.PLUGIN_ENDPOINT;
 const composeEnvStr = process.env.PLUGIN_COMPOSE_ENVIRONMENT;
@@ -33,21 +32,73 @@ const axios = Axios.create({
   },
 });
 
+let registries: { Id: number; URL: string }[] | undefined = undefined;
+
+const getRegistries = async () => {
+  if (registries) return registries;
+
+  console.log("[INFO] Retrieving registries...");
+  const registriesResponse = await axios.get<{ Id: number; URL: string }[]>(
+    "/registries",
+  );
+
+  if (registriesResponse.status !== 200) {
+    console.error("[ERROR] Get registries failed");
+    console.error(registriesResponse);
+    process.exit(1);
+  } else console.log("[INFO] Success.");
+
+  registries = registriesResponse.data;
+
+  return registries;
+};
+
+const getRegistryAuth = async (registryUrl: string) => {
+  const currentRegistries = await getRegistries();
+
+  const registryFromList = currentRegistries.find(
+    (reg) => reg.URL === registryUrl,
+  ) as { Id: number; URL: string } | undefined;
+
+  if (!registryFromList) {
+    console.error("[ERROR] Registry not configured in portainer");
+    process.exit(1);
+  } else
+    console.log(
+      `[INFO] Registry ${registryUrl} found with ID ${registryFromList.Id}`,
+    );
+
+  // Supply a 'X-Registry-Auth' header to work with portainer
+  const xRegistryAuth = { registryId: registryFromList.Id };
+  const xRegistryAuthStr = Buffer.from(JSON.stringify(xRegistryAuth)).toString(
+    "base64",
+  );
+
+  return xRegistryAuthStr;
+};
+
 (async function() {
+  if (!commitHash) {
+    console.error("[ERROR] Commit hash not set.");
+    process.exit(1);
+  }
+
+  const releaseTag = branchName + commitHash.substring(0, 8);
+
   console.log(
     "[INFO] Running drone-portainer plugin with the following params:",
   );
   console.log(`[INFO] \tPortainer URL: ${portainerUrl}`);
   console.log(`[INFO] \tPortainer Username: ${portainerUsername}`);
-  console.log(`[INFO] \tRegistry: ${registry}`);
   console.log(`[INFO] \tImages: ${images.split(",").join(", ")}`);
   console.log(`[INFO] \tStack Name: ${stackName}`);
   console.log(`[INFO] \tEndpoint Name: ${endpoint}`);
   console.log(`[INFO] \tCompose Environment: ${composeEnvStr}`);
   console.log(`[INFO] \tDocker Compose File: ${dockerComposeFile}`);
   console.log(`[INFO] \tStandalone Mode: ${standalone}`);
-  console.log(`[INFO] \tForce Pull: ${forcePull}`);
-  console.log("\n");
+  console.log(`[INFO] \tForce Pull: ${forcePull}\n`);
+  console.log(`[INFO] \tCommit Hash: ${commitHash}`);
+  console.log(`[INFO] \tBranch: ${branchName}\n`);
 
   // Authenticate with portainer and set the bearer token
   console.log("[INFO] Trying to autheticate...");
@@ -84,48 +135,26 @@ const axios = Axios.create({
     process.exit(1);
   } else console.log(`[INFO] Endpoint ${endpoint} found with ID ${localEp.Id}`);
 
-  // Check if the private registry is registered with portainer
-  console.log("[INFO] Retrieving registries...");
-  const registriesResponse = await axios.get("/registries");
-
-  if (response.status !== 200) {
-    console.error("[ERROR] Get registries failed");
-    console.error(response);
-    process.exit(1);
-  } else console.log("[INFO] Success.");
-
-  const registryFromList = registriesResponse.data.find(
-    (reg: { Id: number; URL: string }) => reg.URL === registry,
-  );
-
-  if (!registryFromList) {
-    console.error("[ERROR] Registry not configured in portainer");
-    process.exit(1);
-  } else
-    console.log(
-      `[INFO] Registry ${registry} found with ID ${registryFromList.Id}`,
-    );
-
-  console.log("[INFO] Preparing Image Coordinates...");
-
-  // Supply a 'X-Registry-Auth' header to work with portainer
-  const xRegistryAuth = { registryId: registryFromList.Id };
-  const xRegistryAuthStr = Buffer.from(JSON.stringify(xRegistryAuth)).toString(
-    "base64",
-  );
-
-  const releaseTag = branchName + commitHash.substr(0, 8);
-
   console.log("[INFO] Pulling Images...");
   await Promise.all(
     images.split(",").map(async (imageName: string) => {
       // Pull the image
+      const imageRequestHeaders = new AxiosHeaders();
+
+      const registry = imageName.split("/")[0];
+
+      if (registry != "docker.io") {
+        const registryAuth = await getRegistryAuth(registry);
+
+        imageRequestHeaders.set("X-Registry-Auth", registryAuth);
+      }
+
       console.log(`[INFO] Requesting Image ${imageName}...`);
       const imageResponse = await axios.post(
         `/endpoints/${localEp.Id}/docker/images/create`,
         {},
         {
-          headers: { "X-Registry-Auth": xRegistryAuthStr },
+          headers: imageRequestHeaders,
           params: { fromImage: imageName, tag: releaseTag },
         },
       );
