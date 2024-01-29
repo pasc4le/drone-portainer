@@ -16,7 +16,7 @@ let dockerComposeFile = process.env.PLUGIN_COMPOSE_FILE;
 const standalone = process.env.PLUGIN_STANDALONE ?? false;
 const forcePull = process.env.PLUGIN_FORCE_PULL ?? false;
 
-let additionalComposeEnv: { [key: string]: string } = {};
+let additionalComposeEnv: Record<string, string> = {};
 
 if (composeEnvStr && composeEnvStr !== "") {
   additionalComposeEnv = JSON.parse(composeEnvStr);
