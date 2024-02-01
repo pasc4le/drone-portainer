@@ -12,7 +12,7 @@ const stackName = process.env.PLUGIN_STACK_NAME;
 const endpoint = process.env.PLUGIN_ENDPOINT;
 const composeEnvStr = process.env.PLUGIN_COMPOSE_ENVIRONMENT;
 const composeEnvFromPluginEnvStr =
-  process.env.PLUGIN_COMPOSE_ENVIRONMENT_FROM_PLUGIN_ENV;
+  process.env.PLUGIN_COMPOSE_ENVIRONMENT_FROM_PLUGIN_ENV ?? "";
 let dockerComposeFile = process.env.PLUGIN_COMPOSE_FILE;
 const standalone = process.env.PLUGIN_STANDALONE ?? false;
 const forcePull = process.env.PLUGIN_FORCE_PULL ?? false;
@@ -23,7 +23,7 @@ if (composeEnvStr && composeEnvStr !== "") {
   additionalComposeEnv = JSON.parse(composeEnvStr);
 }
 
-if (composeEnvFromPluginEnvStr && composeEnvFromPluginEnvStr !== "") {
+if (composeEnvFromPluginEnvStr !== "") {
   composeEnvFromPluginEnvStr.split(",").forEach((envVar) => {
     const envValue = process.env[envVar];
     if (envValue) additionalComposeEnv[envVar] = envValue;
@@ -105,6 +105,11 @@ const getRegistryAuth = async (registryUrl: string) => {
   console.log(`[INFO] \tStack Name: ${stackName}`);
   console.log(`[INFO] \tEndpoint Name: ${endpoint}`);
   console.log(`[INFO] \tCompose Environment: ${composeEnvStr}`);
+  console.log(
+    `[INFO] \tCompose Environment From Plugin's Environment: ${composeEnvFromPluginEnvStr
+      .split(",")
+      .join(", ")}`,
+  );
   console.log(`[INFO] \tDocker Compose File: ${dockerComposeFile}`);
   console.log(`[INFO] \tStandalone Mode: ${standalone}`);
   console.log(`[INFO] \tForce Pull: ${forcePull}\n`);
