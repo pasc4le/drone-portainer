@@ -11,6 +11,8 @@ const images = process.env.PLUGIN_IMAGES ?? "";
 const stackName = process.env.PLUGIN_STACK_NAME;
 const endpoint = process.env.PLUGIN_ENDPOINT;
 const composeEnvStr = process.env.PLUGIN_COMPOSE_ENVIRONMENT;
+const composeEnvFromPluginEnvStr =
+  process.env.PLUGIN_COMPOSE_ENVIRONMENT_FROM_PLUGIN_ENV;
 let dockerComposeFile = process.env.PLUGIN_COMPOSE_FILE;
 const standalone = process.env.PLUGIN_STANDALONE ?? false;
 const forcePull = process.env.PLUGIN_FORCE_PULL ?? false;
@@ -19,6 +21,13 @@ let additionalComposeEnv: Record<string, string> = {};
 
 if (composeEnvStr && composeEnvStr !== "") {
   additionalComposeEnv = JSON.parse(composeEnvStr);
+}
+
+if (composeEnvFromPluginEnvStr && composeEnvFromPluginEnvStr !== "") {
+  composeEnvFromPluginEnvStr.split(",").forEach((envVar) => {
+    const envValue = process.env[envVar];
+    if (envValue) additionalComposeEnv[envVar] = envValue;
+  });
 }
 
 if (!dockerComposeFile || dockerComposeFile === "") {
